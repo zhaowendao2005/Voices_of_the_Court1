@@ -379,9 +379,16 @@ export class ApiConnection{
                         }
                     } else {
                         // @ts-ignore
-                        response = completion.choices[0].message.content;
+                        const choice = completion.choices?.[0];
+                        if (choice) {
+                            // Prefer chat message content, fall back to text field if provided
+                            response = choice.message?.content ?? choice.text ?? "";
+                        }
                     }
     
+                    if (!response) {
+                        console.error("Empty response parsed from chat completion:", JSON.stringify(completion, null, 2));
+                    }
                     console.debug("Parsed response:", response);
                     return response;
                 } else {
@@ -424,25 +431,28 @@ export class ApiConnection{
                     if (stream) {
                         // @ts-ignore
                         for await (const chunk of completion) {
-                            let msgChunk: MessageChunk = {
-                                // @ts-ignore
-                                content: chunk.choices[0].text
-                            };
-                            streamRelay!(msgChunk);
-
-                            response += msgChunk.content;
+                            // @ts-ignore
+                            const textChunk = chunk.choices[0].text ?? chunk.choices[0].delta?.content ?? "";
+                            if (textChunk) {
+                                let msgChunk: MessageChunk = {
+                                    content: textChunk
+                                };
+                                streamRelay!(msgChunk);
+                                response += msgChunk.content;
+                            }
                         }
                     } else {
                         // Notice: OpenRouter returns response in completion.choices[0].text trough chat endpoint with legacy format
-                        if (this.type === "openrouter") {
-                            // @ts-ignore
-                            response = completion.choices[0].text;
-                        } else {
-                            // @ts-ignore
-                            response = completion.choices[0].text;
+                        // @ts-ignore
+                        const choice = completion.choices?.[0];
+                        if (choice) {
+                            response = choice.text ?? choice.message?.content ?? "";
                         }
                     }
 
+                    if (!response) {
+                        console.error("Empty response parsed from completion endpoint:", JSON.stringify(completion, null, 2));
+                    }
                     console.debug("Parsed response:", response);
                     if (response === "" || response === undefined || response === null || response === " ") {
                         throw new Error("{code: 599, error: {message: 'No response'}}");
@@ -544,11 +554,11 @@ export class ApiConnection{
                     },
                     body: JSON.stringify(body)
                 });
-                const data = await response.json();
-                if (data.choices && data.choices.length > 0) {
-                    return { success: true, overwriteWarning: this.overwriteWarning };
+                const data = await response。json();
+                if (data。choices && data。choices。length > 0) {
+                    return { success: true, overwriteWarning: this。overwriteWarning };
                 } else {
-                    return { success: false, overwriteWarning: false, errorMessage: data.error?.message || "Invalid response from GLM" };
+                    return { success: false， overwriteWarning: false， errorMessage: data。error?.message || "Invalid response from GLM" };
                 }
             } catch (err) {
                 if (err instanceof Error) {
@@ -559,17 +569,17 @@ export class ApiConnection{
         }
         
         let prompt: string | Message[];
-        if(this.isChat()){
+        if(this。isChat()){
             prompt = [
                 {
-                    role: "user",
+                    role: "user"，
                     content: "ping"
                 }
             ]
         }else{
             prompt = "ping";
         }
-        console.debug("Test prompt:", prompt);
+        console。debug("Test prompt:"， prompt);
 
         return this.complete(prompt, false, {max_tokens: 1}).then( (resp) =>{
             console.debug("testConnection received response from complete():", resp);
@@ -579,8 +589,8 @@ export class ApiConnection{
             else{
                 return {success: false, overwriteWarning: false, errorMessage: "no response, something went wrong..."};
             }
-        }).catch( (err) =>{
-            console.debug("testConnection caught an error from complete():", err);
+        })。catch( (err) =>{
+            console。debug("testConnection caught an error from complete():"， err);
             if (err instanceof Error) {
                 return {success: false, overwriteWarning: false, errorMessage: err.message};
             }
@@ -589,13 +599,13 @@ export class ApiConnection{
     }
 
     calculateTokensFromText(text: string): number{
-          return encoder.encode(text).length;
+          return encoder.encode(text)。length;
     }
 
     calculateTokensFromMessage(msg: Message): number{
-        let sum = encoder.encode(msg.role).length + encoder.encode(msg.content).length
+        let sum = encoder。encode(msg。role)。length + encoder。encode(msg。content)。length
 
-        if(msg.name){
+        if(msg。name){
             sum += encoder.encode(msg.name).length;
         }
 
@@ -604,7 +614,7 @@ export class ApiConnection{
 
     calculateTokensFromChat(chat: Message[]): number{        
         let sum=0;
-        for(let msg of chat){
+        for(let msg / chat){
            sum += this.calculateTokensFromMessage(msg);
         }
 
